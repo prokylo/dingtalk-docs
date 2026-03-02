@@ -26,7 +26,7 @@ from typing import Optional, Tuple
 MAX_CONTENT_LENGTH = 100000  # 最大内容长度
 ALLOWED_ROOT = os.environ.get('OPENCLAW_WORKSPACE', os.getcwd())
 DOC_URL_PATTERN = re.compile(
-    r'^https://alidocs\.dingtalk\.com/i/nodes/([a-zA-Z0-9]{28})$',
+    r'^https://alidocs\.dingtalk\.com/i/nodes/([a-zA-Z0-9]{32})$',
     re.IGNORECASE
 )
 
