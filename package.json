@@ -43,6 +43,6 @@
     "notes": "Beta: 创建文档功能可能需要企业钉钉账号"
   },
   "scripts": {
-    "test": "echo \"No tests yet\""
+    "test": "python3 tests/test_security.py -v"
   }
 }
