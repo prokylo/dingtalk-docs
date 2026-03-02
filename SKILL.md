@@ -1,6 +1,6 @@
 ---
 name: dingtalk-docs
-description: 钉钉文档操作技能。使用 mcporter CLI 连接钉钉 MCP server 执行文档创建、读取、更新、删除等操作。需要配置 DINGTALK_MCP_DOCS_URL 凭证。使用场景：创建云文档、编辑文档内容、管理文档权限、文档格式转换等。
+description: 钉钉文档操作技能。使用 mcporter CLI 连接钉钉 MCP server 执行文档创建、内容读写、文档搜索等操作。需要配置 DINGTALK_MCP_DOCS_URL 凭证。使用场景：创建云文档、读取文档内容、搜索文档、批量写入内容等。
 version: 0.1.0
 metadata:
   openclaw:
@@ -15,7 +15,7 @@ metadata:
 
 # 钉钉文档操作
 
-通过 MCP 协议连接钉钉文档 API，执行文档创建、读取、更新、删除等操作。
+通过 MCP 协议连接钉钉文档 API，执行文档创建、内容读写、搜索等操作。
 
 ## ⚠️ 安全须知
 
@@ -23,21 +23,17 @@ metadata:
 
 1. **本技能需要外部 CLI 工具** - 需安装 `mcporter` (npm/bun 全局安装)
 2. **需要配置认证凭证** - Streamable HTTP URL 包含访问令牌，请妥善保管
-3. **脚本审查建议** - `scripts/` 目录包含 Python 辅助脚本，建议先审查再运行
+3. **权限限制** - 仅能操作当前用户有权限访问的文档
 4. **测试环境优先** - 首次使用建议在测试文档中验证，确认无误后再操作生产数据
 
 ### 🔒 安全加固措施
 
-脚本已实施以下安全保护：
-
 | 保护措施 | 说明 |
 |----------|------|
-| **路径沙箱** | `resolve_safe_path()` 防止目录遍历攻击，限制文件访问在 `OPENCLAW_WORKSPACE` 内 |
-| **UUID 验证** | 严格验证 docUuid 格式，防止无效输入 |
-| **文件扩展名白名单** | 仅允许 `.md`, `.txt`, `.json` 等安全格式 |
-| **文件大小限制** | 导入文件最大 10MB，防止 DoS |
+| **凭证隔离** | 推荐使用 `mcporter config` 持久化存储，避免命令行历史泄露 |
+| **权限控制** | 仅能访问当前用户有权限的文档 |
 | **命令超时** | mcporter 命令超时限制（60-120 秒） |
-| **输入清理** | 自动去除空白、验证空值 |
+| **输入验证** | dentryUuid 格式验证，防止无效输入 |
 
 **配置建议：**
 ```bash
@@ -68,8 +64,9 @@ mcporter --version
 
 **获取 Streamable HTTP URL：**
 
-1. 访问钉钉 MCP 广场 **钉钉文档** MCP 服务：https://mcp.dingtalk.com/#/detail?mcpId=1047&detailType=marketMcpDetail
-2. 点击"获取 MCP Server 配置"按钮，复制 `Streamable HTTP URL`
+1. 访问钉钉 MCP 广场：https://mcp.dingtalk.com
+2. 找到 **钉钉文档** 服务
+3. 点击"获取 MCP Server 配置"按钮，复制 `Streamable HTTP URL`
 
 **方式一：使用 mcporter config（推荐）**
 
@@ -94,101 +91,231 @@ export DINGTALK_MCP_DOCS_URL="<Streamable_HTTP_URL>"
 
 ## API 方法
 
-### 文档基础操作
+钉钉文档 MCP 服务提供 **6 个工具方法**：
 
-| 方法 | 说明 | 输入参数 | 返回 |
-|------|------|----------|------|
-| `create_doc` | 创建新文档 | title, folder_id, template_id | { doc_id, url } |
-| `get_doc` | 获取文档详情 | doc_id | { title, content, meta } |
-| `update_doc` | 更新文档内容 | doc_id, content | { success, updated_at } |
-| `delete_doc` | 删除文档 | doc_id | { success } |
-| `list_docs` | 列出文档 | folder_id, limit, offset | { docs: [], total } |
-| `move_doc` | 移动文档 | doc_id, target_folder_id | { success } |
-| `copy_doc` | 复制文档 | doc_id, target_folder_id, new_title | { doc_id, url } |
+### 1. list_accessible_documents
 
-### 文档内容操作
+**功能：** 搜索当前用户有权限访问的文档列表
 
-| 方法 | 说明 | 输入参数 | 返回 |
-|------|------|----------|------|
-| `get_content` | 获取文档内容 | doc_id, format | { content, format } |
-| `insert_block` | 插入内容块 | doc_id, block_type, content, position | { block_id } |
-| `update_block` | 更新内容块 | doc_id, block_id, content | { success } |
-| `delete_block` | 删除内容块 | doc_id, block_id | { success } |
-| `list_blocks` | 列出内容块 | doc_id, parent_block_id | { blocks: [] } |
+**参数：**
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `keyword` | string | 否 | 搜索关键词 |
 
-### 文档权限管理
-
-| 方法 | 说明 | 输入参数 | 返回 |
-|------|------|----------|------|
-| `get_permission` | 获取权限设置 | doc_id | { permissions: [] } |
-| `set_permission` | 设置权限 | doc_id, user_id, role | { success } |
-| `remove_permission` | 移除权限 | doc_id, user_id | { success } |
-| `share_doc` | 分享文档 | doc_id, share_type, password | { share_url } |
-
-### 文件夹操作
-
-| 方法 | 说明 | 输入参数 | 返回 |
-|------|------|----------|------|
-| `create_folder` | 创建文件夹 | name, parent_id | { folder_id } |
-| `list_folders` | 列出文件夹 | parent_id | { folders: [] } |
-| `delete_folder` | 删除文件夹 | folder_id | { success } |
-
-## 使用示例
-
-### 创建文档
-
-```bash
-mcporter call dingtalk-docs create_doc \
-  --title "项目计划" \
-  --folder_id "fld_xxx"
+**返回：**
+```json
+{
+  "docs": [
+    {
+      "dentryUuid": "文档唯一 ID",
+      "title": "文档标题",
+      "type": "文档类型",
+      "updateTime": "最后更新时间"
+    }
+  ]
+}
 ```
 
-### 获取文档内容
-
+**使用示例：**
 ```bash
-mcporter call dingtalk-docs get_content \
-  --doc_id "doc_xxx" \
-  --format "markdown"
+# 搜索包含"项目"的文档
+mcporter call dingtalk-docs.list_accessible_documents "项目"
+
+# 列出所有有权限的文档
+mcporter call dingtalk-docs.list_accessible_documents
 ```
 
-### 更新文档
+---
 
-```bash
-mcporter call dingtalk-docs update_doc \
-  --doc_id "doc_xxx" \
-  --content "# 更新后的内容\n\n正文..."
+### 2. get_my_docs_root_dentry_uuid
+
+**功能：** 获取当前用户"我的文档"空间的根目录节点 ID
+
+**参数：** 无
+
+**返回：**
+```json
+{
+  "rootDentryUuid": "DnRL6jAJMNX9kAgycoLy2vOo8yMoPYe1"
+}
 ```
 
-### 列出文档
-
+**使用示例：**
 ```bash
-mcporter call dingtalk-docs list_docs \
-  --folder_id "fld_xxx" \
-  --limit 20
+mcporter call dingtalk-docs.get_my_docs_root_dentry_uuid
 ```
 
-### 分享文档
+**用途：** 获取的根目录 ID 可作为 `create_doc_under_node` 或 `create_dentry_under_node` 的父节点参数。
 
-```bash
-mcporter call dingtalk-docs share_doc \
-  --doc_id "doc_xxx" \
-  --share_type "anyone_with_link"
+---
+
+### 3. create_doc_under_node
+
+**功能：** 在指定父节点下创建一篇新的在线文档
+
+**参数：**
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `name` | string | 是 | 文档名称 |
+| `parentDentryUuid` | string | 是 | 父节点 ID（可使用根目录 ID 或文件夹 ID） |
+
+**返回：**
+```json
+{
+  "dentryUuid": "新文档 ID",
+  "title": "文档标题",
+  "createTime": "创建时间",
+  "url": "访问链接"
+}
 ```
 
-## 脚本工具
-
-`scripts/` 目录提供 Python 辅助脚本：
-
-| 脚本 | 说明 |
-|------|------|
-| `create_doc.py` | 批量创建文档 |
-| `import_docs.py` | 从本地文件导入文档 |
-| `export_docs.py` | 导出文档到本地 |
-| `sync_folder.py` | 同步文件夹内容 |
-
-使用示例：
+**使用示例：**
 ```bash
-python3 scripts/create_doc.py --title "新文档" --folder "fld_xxx"
+# 先获取根目录 ID
+ROOT_ID=$(mcporter call dingtalk-docs.get_my_docs_root_dentry_uuid | jq -r '.rootDentryUuid')
+
+# 创建文档
+mcporter call dingtalk-docs.create_doc_under_node "我的新文档" "$ROOT_ID"
+```
+
+---
+
+### 4. create_dentry_under_node
+
+**功能：** 在指定节点下创建新节点（支持多种类型：文档、表格、PPT、文件夹等）
+
+**参数：**
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `name` | string | 是 | 节点名称 |
+| `accessType` | string | 是 | 节点类型（见下表） |
+| `parentDentryUuid` | string | 是 | 父节点 ID |
+
+**节点类型枚举：**
+| 值 | 类型 |
+|----|------|
+| `0` | 文档 |
+| `1` | 表格 |
+| `2` | PPT |
+| `3` | 白板 |
+| `6` | 脑图 |
+| `7` | 多维表 |
+| `9` | 视频 |
+| `10` | 图片 |
+| `13` | 文件夹 |
+| `14` | PDF |
+| `99` | 其他文件 |
+
+**使用示例：**
+```bash
+# 创建文件夹
+ROOT_ID=$(mcporter call dingtalk-docs.get_my_docs_root_dentry_uuid | jq -r '.rootDentryUuid')
+mcporter call dingtalk-docs.create_dentry_under_node "项目资料" "13" "$ROOT_ID"
+
+# 创建表格
+mcporter call dingtalk-docs.create_dentry_under_node "数据报表" "1" "$ROOT_ID"
+```
+
+---
+
+### 5. write_content_to_document
+
+**功能：** 将文本内容写入目标文档（支持覆盖或续写模式）
+
+**参数：**
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `content` | string | 是 | 要写入的内容（支持 Markdown 格式） |
+| `updateType` | number | 是 | `0`=覆盖写入，`1`=续写 |
+| `targetDentryUuid` | string | 是 | 目标文档 ID |
+
+**返回：**
+```json
+{
+  "success": true
+}
+```
+
+**使用示例：**
+```bash
+# 覆盖写入
+mcporter call dingtalk-docs.write_content_to_document "# 项目计划\n\n## 目标\n完成 Q1 目标" "0" "doc_xxx"
+
+# 续写
+mcporter call dingtalk-docs.write_content_to_document "\n\n## 更新日志\n- 2026-03-02: 初始版本" "1" "doc_xxx"
+```
+
+---
+
+### 6. get_document_content_by_url
+
+**功能：** 根据文档 URL 获取文档内容（Markdown 格式）
+
+**参数：**
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `docUrl` | string | 是 | 文档 URL（格式：`https://alidocs.dingtalk.com/i/nodes/{dentryUuid}`） |
+
+**返回：**
+```json
+{
+  "content": "# 文档内容\n\n正文...",
+  "format": "markdown"
+}
+```
+
+**使用示例：**
+```bash
+# 通过文档 ID 拼接 URL 获取内容
+DOC_ID="DnRL6jAJMNX9kAgycoLy2vOo8yMoPYe1"
+DOC_URL="https://alidocs.dingtalk.com/i/nodes/${DOC_ID}"
+mcporter call dingtalk-docs.get_document_content_by_url "$DOC_URL"
+```
+
+---
+
+## 完整工作流程示例
+
+### 创建并写入文档
+
+```bash
+# 1. 获取根目录 ID
+ROOT_ID=$(mcporter call dingtalk-docs.get_my_docs_root_dentry_uuid | jq -r '.rootDentryUuid')
+
+# 2. 创建新文档
+RESULT=$(mcporter call dingtalk-docs.create_doc_under_node "项目计划" "$ROOT_ID")
+DOC_ID=$(echo "$RESULT" | jq -r '.dentryUuid')
+
+# 3. 写入内容
+mcporter call dingtalk-docs.write_content_to_document "# 项目计划\n\n## 目标\n完成 Q1 目标" "0" "$DOC_ID"
+
+# 4. 验证内容
+DOC_URL="https://alidocs.dingtalk.com/i/nodes/${DOC_ID}"
+mcporter call dingtalk-docs.get_document_content_by_url "$DOC_URL"
+```
+
+### 搜索并读取文档
+
+```bash
+# 1. 搜索文档
+mcporter call dingtalk-docs.list_accessible_documents "项目"
+
+# 2. 获取文档内容（假设搜索到 dentryUuid=abc123）
+mcporter call dingtalk-docs.get_document_content_by_url "https://alidocs.dingtalk.com/i/nodes/abc123"
+```
+
+### 创建文件夹并整理文档
+
+```bash
+# 1. 获取根目录
+ROOT_ID=$(mcporter call dingtalk-docs.get_my_docs_root_dentry_uuid | jq -r '.rootDentryUuid')
+
+# 2. 创建文件夹
+FOLDER_RESULT=$(mcporter call dingtalk-docs.create_dentry_under_node "2026 项目" "13" "$ROOT_ID")
+FOLDER_ID=$(echo "$FOLDER_RESULT" | jq -r '.dentryUuid')
+
+# 3. 在文件夹中创建文档
+mcporter call dingtalk-docs.create_doc_under_node "Q1 计划" "$FOLDER_ID"
 ```
 
 ## 故障排查
@@ -209,12 +336,18 @@ Error: Permission denied
 ```
 - 确认当前用户对文档有操作权限
 - 检查文档是否被锁定或只读
+- 确保父节点有写入权限
 
-**3. 文档不存在**
+**3. 创建文档失败（错误码 52600007）**
+- 可能是企业账号限制
+- 父节点 ID 无效
+- 钉钉文档服务临时故障
+
+**4. 文档不存在**
 ```
 Error: Document not found
 ```
-- 确认 doc_id 正确
+- 确认 dentryUuid 正确
 - 检查文档是否已被删除
 
 ### 日志位置
