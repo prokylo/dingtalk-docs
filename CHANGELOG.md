@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.2.0] - 2026-03-04
+
+### 改动
+
+**传参方式统一为 JSON：**
+- ✅ SKILL.md 所有示例改用 `--args '{"key": "value"}'` 格式
+- ✅ `create_doc.py` — `run_mcporter()` 改为 `--args` JSON 传参
+- ✅ `import_docs.py` — 同上
+- ✅ `export_docs.py` — 同上
+- ✅ 三个脚本新增 `parse_response()` 统一处理嵌套 `result` 返回结构
+
+**Bug 修复：**
+- 🐛 修复脚本无法正确提取 `dentryUuid` 和 `pcUrl`（API 返回嵌套在 `result` 字段内）
+- 🐛 `export_docs.py` UUID 正则从固定 32 位改为 `[a-zA-Z0-9]+`，兼容不同长度 ID
+
+---
+
 ## [0.1.1] - 2026-03-02
 
 ### 新增功能

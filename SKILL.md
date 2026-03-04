@@ -1,7 +1,7 @@
 ---
 name: dingtalk-docs
 description: 钉钉文档操作技能。使用 mcporter CLI 连接钉钉 MCP server 执行文档创建、内容读写、文档搜索等操作。需要配置 DINGTALK_MCP_DOCS_URL 凭证。使用场景：创建云文档、读取文档内容、搜索文档、批量写入内容等。
-version: 0.1.0
+version: 0.2.0
 metadata:
   openclaw:
     requires:
@@ -91,7 +91,7 @@ export DINGTALK_MCP_DOCS_URL="<Streamable_HTTP_URL>"
 
 ## API 方法
 
-钉钉文档 MCP 服务提供 **6 个工具方法**：
+钉钉文档 MCP 服务提供 **6 个工具方法**。所有调用统一使用 `--args` JSON 传参：
 
 ### 1. list_accessible_documents
 
@@ -119,7 +119,7 @@ export DINGTALK_MCP_DOCS_URL="<Streamable_HTTP_URL>"
 **使用示例：**
 ```bash
 # 搜索包含"项目"的文档
-mcporter call dingtalk-docs.list_accessible_documents "项目"
+mcporter call dingtalk-docs.list_accessible_documents --args '{"keyword": "项目"}'
 
 # 列出所有有权限的文档
 mcporter call dingtalk-docs.list_accessible_documents
@@ -171,11 +171,7 @@ mcporter call dingtalk-docs.get_my_docs_root_dentry_uuid
 
 **使用示例：**
 ```bash
-# 先获取根目录 ID
-ROOT_ID=$(mcporter call dingtalk-docs.get_my_docs_root_dentry_uuid | jq -r '.rootDentryUuid')
-
-# 创建文档
-mcporter call dingtalk-docs.create_doc_under_node "我的新文档" "$ROOT_ID"
+mcporter call dingtalk-docs.create_doc_under_node --args '{"name": "我的新文档", "parentDentryUuid": "ROOT_ID"}'
 ```
 
 ---
@@ -209,11 +205,10 @@ mcporter call dingtalk-docs.create_doc_under_node "我的新文档" "$ROOT_ID"
 **使用示例：**
 ```bash
 # 创建文件夹
-ROOT_ID=$(mcporter call dingtalk-docs.get_my_docs_root_dentry_uuid | jq -r '.rootDentryUuid')
-mcporter call dingtalk-docs.create_dentry_under_node "项目资料" "13" "$ROOT_ID"
+mcporter call dingtalk-docs.create_dentry_under_node --args '{"name": "项目资料", "accessType": "13", "parentDentryUuid": "ROOT_ID"}'
 
 # 创建表格
-mcporter call dingtalk-docs.create_dentry_under_node "数据报表" "1" "$ROOT_ID"
+mcporter call dingtalk-docs.create_dentry_under_node --args '{"name": "数据报表", "accessType": "1", "parentDentryUuid": "ROOT_ID"}'
 ```
 
 ---
@@ -239,10 +234,10 @@ mcporter call dingtalk-docs.create_dentry_under_node "数据报表" "1" "$ROOT_I
 **使用示例：**
 ```bash
 # 覆盖写入
-mcporter call dingtalk-docs.write_content_to_document "# 项目计划\n\n## 目标\n完成 Q1 目标" "0" "doc_xxx"
+mcporter call dingtalk-docs.write_content_to_document --args '{"content": "# 项目计划\n\n## 目标\n完成 Q1 目标", "updateType": 0, "targetDentryUuid": "doc_xxx"}'
 
 # 续写
-mcporter call dingtalk-docs.write_content_to_document "\n\n## 更新日志\n- 2026-03-02: 初始版本" "1" "doc_xxx"
+mcporter call dingtalk-docs.write_content_to_document --args '{"content": "\n\n## 更新日志\n- 2026-03-02: 初始版本", "updateType": 1, "targetDentryUuid": "doc_xxx"}'
 ```
 
 ---
@@ -266,10 +261,7 @@ mcporter call dingtalk-docs.write_content_to_document "\n\n## 更新日志\n- 20
 
 **使用示例：**
 ```bash
-# 通过文档 ID 拼接 URL 获取内容
-DOC_ID="DnRL6jAJMNX9kAgycoLy2vOo8yMoPYe1"
-DOC_URL="https://alidocs.dingtalk.com/i/nodes/${DOC_ID}"
-mcporter call dingtalk-docs.get_document_content_by_url "$DOC_URL"
+mcporter call dingtalk-docs.get_document_content_by_url --args '{"docUrl": "https://alidocs.dingtalk.com/i/nodes/DnRL6jAJMNX9kAgycoLy2vOo8yMoPYe1"}'
 ```
 
 ---
@@ -280,42 +272,39 @@ mcporter call dingtalk-docs.get_document_content_by_url "$DOC_URL"
 
 ```bash
 # 1. 获取根目录 ID
-ROOT_ID=$(mcporter call dingtalk-docs.get_my_docs_root_dentry_uuid | jq -r '.rootDentryUuid')
+ROOT_ID=$(mcporter call dingtalk-docs.get_my_docs_root_dentry_uuid --output json | jq -r '.rootDentryUuid')
 
 # 2. 创建新文档
-RESULT=$(mcporter call dingtalk-docs.create_doc_under_node "项目计划" "$ROOT_ID")
-DOC_ID=$(echo "$RESULT" | jq -r '.dentryUuid')
+DOC_ID=$(mcporter call dingtalk-docs.create_doc_under_node --args "{\"name\": \"项目计划\", \"parentDentryUuid\": \"$ROOT_ID\"}" --output json | jq -r '.dentryUuid')
 
 # 3. 写入内容
-mcporter call dingtalk-docs.write_content_to_document "# 项目计划\n\n## 目标\n完成 Q1 目标" "0" "$DOC_ID"
+mcporter call dingtalk-docs.write_content_to_document --args "{\"content\": \"# 项目计划\\n\\n## 目标\\n完成 Q1 目标\", \"updateType\": 0, \"targetDentryUuid\": \"$DOC_ID\"}"
 
 # 4. 验证内容
-DOC_URL="https://alidocs.dingtalk.com/i/nodes/${DOC_ID}"
-mcporter call dingtalk-docs.get_document_content_by_url "$DOC_URL"
+mcporter call dingtalk-docs.get_document_content_by_url --args "{\"docUrl\": \"https://alidocs.dingtalk.com/i/nodes/$DOC_ID\"}"
 ```
 
 ### 搜索并读取文档
 
 ```bash
 # 1. 搜索文档
-mcporter call dingtalk-docs.list_accessible_documents "项目"
+mcporter call dingtalk-docs.list_accessible_documents --args '{"keyword": "项目"}'
 
 # 2. 获取文档内容（假设搜索到 dentryUuid=abc123）
-mcporter call dingtalk-docs.get_document_content_by_url "https://alidocs.dingtalk.com/i/nodes/abc123"
+mcporter call dingtalk-docs.get_document_content_by_url --args '{"docUrl": "https://alidocs.dingtalk.com/i/nodes/abc123"}'
 ```
 
 ### 创建文件夹并整理文档
 
 ```bash
 # 1. 获取根目录
-ROOT_ID=$(mcporter call dingtalk-docs.get_my_docs_root_dentry_uuid | jq -r '.rootDentryUuid')
+ROOT_ID=$(mcporter call dingtalk-docs.get_my_docs_root_dentry_uuid --output json | jq -r '.rootDentryUuid')
 
 # 2. 创建文件夹
-FOLDER_RESULT=$(mcporter call dingtalk-docs.create_dentry_under_node "2026 项目" "13" "$ROOT_ID")
-FOLDER_ID=$(echo "$FOLDER_RESULT" | jq -r '.dentryUuid')
+FOLDER_ID=$(mcporter call dingtalk-docs.create_dentry_under_node --args "{\"name\": \"2026 项目\", \"accessType\": \"13\", \"parentDentryUuid\": \"$ROOT_ID\"}" --output json | jq -r '.dentryUuid')
 
 # 3. 在文件夹中创建文档
-mcporter call dingtalk-docs.create_doc_under_node "Q1 计划" "$FOLDER_ID"
+mcporter call dingtalk-docs.create_doc_under_node --args "{\"name\": \"Q1 计划\", \"parentDentryUuid\": \"$FOLDER_ID\"}"
 ```
 
 ## 故障排查
