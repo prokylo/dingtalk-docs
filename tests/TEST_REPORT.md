@@ -4,179 +4,91 @@
 
 | 项目 | 说明 |
 |------|------|
-| 测试日期 | 2026-03-02 |
-| 测试范围 | 安全功能、API 调用、脚本工具 |
+| 测试日期 | 2026-03-04 |
+| 版本 | 0.2.1 |
+| 测试范围 | 安全功能、JSON 传参、响应解析、脚本签名一致性 |
 | 测试环境 | macOS, Python 3.x, mcporter >=0.7.0 |
+| 测试结果 | **18/18 通过** |
 
 ---
 
-## 安全功能测试
+## 测试用例清单
 
-### 1. 路径安全限制
+### 1. 路径安全 (TestResolveSafePath) — 3 个
 
-**测试用例：**
-
-| 用例 | 输入 | 预期 | 结果 |
-|------|------|------|------|
-| 相对路径 | `file.md` | ✅ 成功 | 通过 |
-| 子目录路径 | `subdir/file.md` | ✅ 成功 | 通过 |
-| 绝对路径（允许范围内） | `/workspace/file.md` | ✅ 成功 | 通过 |
-| 目录遍历攻击 | `../etc/passwd` | ❌ 拒绝 | 通过 |
-| 多层遍历攻击 | `../../etc/passwd` | ❌ 拒绝 | 通过 |
-| 绝对路径（超出范围） | `/etc/passwd` | ❌ 拒绝 | 通过 |
-
-**结论：** 路径沙箱功能正常，有效防止目录遍历攻击。
-
----
-
-### 2. 文件扩展名验证
-
-**允许的扩展名：** `.md`, `.txt`, `.markdown`
-
-**测试用例：**
-
-| 输入 | 预期 | 结果 |
+| 用例 | 说明 | 结果 |
 |------|------|------|
-| `test.md` | ✅ 允许 | 通过 |
-| `test.TXT` | ✅ 允许（不区分大小写） | 通过 |
-| `test.exe` | ❌ 拒绝 | 通过 |
-| `test.sh` | ❌ 拒绝 | 通过 |
-| `test.pdf` | ❌ 拒绝 | 通过 |
+| 目录遍历攻击 | `../etc/passwd` → 应拒绝 | ✅ |
+| 绝对路径越界 | `/etc/passwd` → 应拒绝 | ✅ |
+| 合法相对路径 | 工作目录内文件 → 应通过 | ✅ |
 
-**结论：** 扩展名白名单功能正常。
+### 2. 文件扩展名 (TestFileExtensionValidation) — 3 个
 
----
-
-### 3. 文件大小限制
-
-**限制：** 最大 10MB
-
-**测试用例：**
-
-| 文件大小 | 预期 | 结果 |
-|----------|------|------|
-| 1KB | ✅ 允许 | 通过 |
-| 5MB | ✅ 允许 | 通过 |
-| 11MB | ❌ 拒绝 | 通过 |
-
-**结论：** 文件大小限制功能正常，防止 DoS 攻击。
-
----
-
-### 4. URL 格式验证
-
-**格式：** `https://alidocs.dingtalk.com/i/nodes/{dentryUuid}`
-
-**测试用例：**
-
-| 输入 | 预期 | 结果 |
+| 用例 | 说明 | 结果 |
 |------|------|------|
-| `https://alidocs.dingtalk.com/i/nodes/abc123...` | ✅ 有效 | 通过 |
-| `https://alidocs.dingtalk.com/i/nodes/short` | ❌ 无效 | 通过 |
-| `http://...` | ❌ 无效 | 通过 |
-| `not a url` | ❌ 无效 | 通过 |
+| 允许扩展名 | `.md`, `.txt`, `.markdown` | ✅ |
+| 大小写不敏感 | `.MD`, `.TXT` | ✅ |
+| 禁止扩展名 | `.exe`, `.sh`, `.py`, `.pdf` | ✅ |
 
-**结论：** URL 验证正则表达式正常工作。
+### 3. 文件大小 (TestFileSizeValidation) — 2 个
 
----
-
-### 5. 内容长度限制
-
-**限制：** 最大 50,000 字符（创建/写入），100,000 字符（导出）
-
-**测试用例：**
-
-| 场景 | 限制 | 行为 |
+| 用例 | 说明 | 结果 |
 |------|------|------|
-| 创建文档 | 50,000 | 超出部分截断 |
-| 导入文档 | 50,000 | 超出部分截断 |
-| 导出文档 | 100,000 | 超出部分截断 |
+| 小文件 | < 10MB → 通过 | ✅ |
+| 大文件 | > 10MB → 拒绝 | ✅ |
 
-**结论：** 内容长度限制有效，防止大内容攻击。
+### 4. URL 验证 (TestDocUrlValidation) — 2 个
+
+| 用例 | 说明 | 结果 |
+|------|------|------|
+| 有效 URL | 正确提取 dentryUuid | ✅ |
+| 无效 URL | http / 空 ID / 含空格 / 错误域名 → None | ✅ |
+
+### 5. 响应解析 (TestParseResponse) — 3 个
+
+| 用例 | 说明 | 结果 |
+|------|------|------|
+| 扁平 JSON | 顶层直接返回 | ✅ |
+| 嵌套 result | `{success, result: {dentryUuid, pcUrl}}` | ✅ |
+| 非法 JSON | 返回 None | ✅ |
+
+### 6. run_mcporter 签名 (TestRunMcporter) — 2 个
+
+| 用例 | 说明 | 结果 |
+|------|------|------|
+| 函数签名 | 参数为 `(tool, args, timeout)` | ✅ |
+| 三脚本一致 | create/import/export 签名相同 | ✅ |
+
+### 7. 内容长度常量 (TestContentLimits) — 3 个
+
+| 用例 | 说明 | 结果 |
+|------|------|------|
+| create_doc | MAX_CONTENT_LENGTH = 50000 | ✅ |
+| import_docs | MAX_CONTENT_LENGTH = 50000 | ✅ |
+| export_docs | MAX_CONTENT_LENGTH = 100000 | ✅ |
 
 ---
 
-## API 方法测试
-
-### 已验证的方法
+## API 方法端到端测试
 
 | 方法 | 状态 | 备注 |
 |------|------|------|
-| `get_my_docs_root_dentry_uuid()` | ✅ 成功 | 返回根目录 ID |
-| `list_accessible_documents()` | ⚠️ 空返回 | 可能无权限或搜索关键词问题 |
-| `create_doc_under_node()` | ❌ 失败 | 错误码 52600007（企业限制） |
-| `create_dentry_under_node()` | ❌ 失败 | 错误码 52600007（企业限制） |
-| `write_content_to_document()` | ⚠️ 未测试 | 需要有效文档 ID |
-| `get_document_content_by_url()` | ⚠️ 未测试 | 需要有效文档 URL |
-
-**结论：** API 连接正常，但创建操作需要企业钉钉账号权限。
-
----
-
-## 脚本工具测试
-
-### create_doc.py
-
-| 功能 | 状态 |
-|------|------|
-| 参数验证 | ✅ |
-| 获取根目录 ID | ✅ |
-| 创建文档 | ⚠️ 依赖 API |
-| 写入内容 | ⚠️ 依赖 API |
-| 错误处理 | ✅ |
-
-### import_docs.py
-
-| 功能 | 状态 |
-|------|------|
-| 文件扩展名验证 | ✅ |
-| 文件大小验证 | ✅ |
-| 路径安全检查 | ✅ |
-| 读取文件 | ✅ |
-| 创建文档 | ⚠️ 依赖 API |
-| 写入内容 | ⚠️ 依赖 API |
-
-### export_docs.py
-
-| 功能 | 状态 |
-|------|------|
-| URL 格式验证 | ✅ |
-| 路径安全检查 | ✅ |
-| 获取文档内容 | ⚠️ 依赖 API |
-| 保存文件 | ✅ |
-
----
-
-## 已知限制
-
-1. **企业账号限制**：创建文档功能可能需要企业钉钉账号
-2. **权限限制**：仅能访问当前用户有权限的文档
-3. **API 稳定性**：钉钉文档 MCP 服务可能处于测试阶段
-
----
-
-## 建议
-
-1. ✅ 所有安全功能已实施并测试通过
-2. ⚠️ 创建功能需要企业账号验证
-3. 📝 建议在 SKILL.md 中标注已知限制
-4. 🔒 安全加固措施完善，可以发布
+| `get_my_docs_root_dentry_uuid()` | ✅ 成功 | JSON 传参，返回根目录 ID |
+| `list_accessible_documents()` | ✅ 成功 | `--args '{"keyword": "..."}'` 格式 |
+| `create_doc_under_node()` | ✅ 成功 | 创建文档 + 正确解析嵌套 result |
+| `write_content_to_document()` | ✅ 成功 | 覆盖写入验证通过 |
+| `get_document_content_by_url()` | ✅ 成功 | 导出内容与写入一致 |
+| `create_dentry_under_node()` | ⚠️ 受限 | 企业账号权限限制（错误码 52600007） |
 
 ---
 
 ## 测试命令
 
 ```bash
-# 运行单元测试
 cd ~/Skills/dingtalk-docs
 python3 tests/test_security.py -v
-
-# 测试脚本（需要有效凭证）
-python3 scripts/create_doc.py "测试文档" "# Hello World"
-python3 scripts/import_docs.py README.md
-python3 scripts/export_docs.py https://alidocs.dingtalk.com/i/nodes/xxx output.md
 ```
 
 ---
 
-**测试状态：** ✅ 安全功能通过 | ⚠️ API 功能受限（企业账号）
+**测试状态：** ✅ 18/18 通过

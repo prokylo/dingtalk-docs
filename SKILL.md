@@ -1,7 +1,7 @@
 ---
 name: dingtalk-docs
 description: 钉钉文档操作技能。使用 mcporter CLI 连接钉钉 MCP server 执行文档创建、内容读写、文档搜索等操作。需要配置 DINGTALK_MCP_DOCS_URL 凭证。使用场景：创建云文档、读取文档内容、搜索文档、批量写入内容等。
-version: 0.2.0
+version: 0.2.1
 metadata:
   openclaw:
     requires:

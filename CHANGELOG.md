@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.2.1] - 2026-03-04
+
+### 修复
+
+- 🐛 测试套件同步适配 v0.2.0 JSON 传参（旧测试用位置参数调用 run_mcporter，与代码不一致）
+- ✅ 新增 parse_response / 函数签名一致性 / 内容常量等测试用例（10→18 个）
+- 🐛 修复 macOS symlink 导致路径比较失败（/var → /private/var）
+- 📝 更新 TEST_REPORT.md
+
+
 ## [0.2.0] - 2026-03-04
 
 ### 改动
