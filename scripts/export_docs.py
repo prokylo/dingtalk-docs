@@ -14,13 +14,13 @@
     python export_docs.py https://alidocs.dingtalk.com/i/nodes/abc123 output.md
 """
 
-import sys
-import subprocess
 import os
 import re
-import json
+import sys
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Optional
+
+from mcporter_utils import run_mcporter, parse_response, resolve_safe_path
 
 # ============== 安全常量 ==============
 MAX_CONTENT_LENGTH = 100000  # 最大内容长度
@@ -32,63 +32,12 @@ DOC_URL_PATTERN = re.compile(
 
 # ============== 安全函数 ==============
 
-def resolve_safe_path(path: str) -> Path:
-    """解析路径并限制在工作目录内"""
-    allowed_root = Path(ALLOWED_ROOT).resolve()
-
-    if Path(path).is_absolute():
-        target_path = Path(path).resolve()
-    else:
-        target_path = (Path.cwd() / path).resolve()
-
-    try:
-        target_path.relative_to(allowed_root)
-        return target_path
-    except ValueError:
-        raise ValueError(
-            f"路径超出允许范围：{path}\n"
-            f"允许根目录：{allowed_root}"
-        )
-
 def extract_doc_uuid(url: str) -> Optional[str]:
     """从 URL 提取文档 ID"""
     match = DOC_URL_PATTERN.match(url.strip())
     if match:
         return match.group(1)
     return None
-
-# ============== 工具函数 ==============
-
-def run_mcporter(tool: str, args: dict = None, timeout: int = 60) -> Tuple[bool, str]:
-    """执行 mcporter 命令（使用 --args JSON 传参）"""
-    command = ['mcporter', 'call', tool, '--output', 'json']
-    if args:
-        command.extend(['--args', json.dumps(args, ensure_ascii=False)])
-    try:
-        result = subprocess.run(
-            command,
-            capture_output=True,
-            text=True,
-            timeout=timeout
-        )
-        if result.returncode == 0:
-            return True, result.stdout
-        else:
-            return False, result.stderr
-    except subprocess.TimeoutExpired:
-        return False, f"命令执行超时（{timeout}秒）"
-    except Exception as e:
-        return False, str(e)
-
-def parse_response(output: str) -> Optional[dict]:
-    """解析 mcporter 响应，自动处理嵌套 result 结构"""
-    try:
-        data = json.loads(output)
-        if isinstance(data, dict) and 'result' in data:
-            return data['result']
-        return data
-    except json.JSONDecodeError:
-        return None
 
 def get_document_content(doc_url: str) -> Optional[str]:
     """获取文档内容"""
