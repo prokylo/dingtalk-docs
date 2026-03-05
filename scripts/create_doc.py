@@ -15,73 +15,14 @@
 """
 
 import sys
-import subprocess
-import os
-import re
-import json
-from pathlib import Path
-from typing import Optional, Tuple
+from typing import Optional
+
+from mcporter_utils import run_mcporter, parse_response, get_root_dentry_uuid
 
 # ============== 安全常量 ==============
 MAX_CONTENT_LENGTH = 50000  # 最大内容长度（字符）
 
-# ============== 工具函数 ==============
-
-def run_mcporter(tool: str, args: dict = None, timeout: int = 60) -> Tuple[bool, str]:
-    """
-    执行 mcporter 命令（使用 --args JSON 传参）
-
-    Args:
-        tool: 工具名称，如 dingtalk-docs.get_my_docs_root_dentry_uuid
-        args: 参数字典，传入 --args JSON
-        timeout: 超时时间（秒）
-
-    Returns:
-        (success, output) 元组
-    """
-    command = ['mcporter', 'call', tool, '--output', 'json']
-    if args:
-        command.extend(['--args', json.dumps(args, ensure_ascii=False)])
-    try:
-        result = subprocess.run(
-            command,
-            capture_output=True,
-            text=True,
-            timeout=timeout
-        )
-        if result.returncode == 0:
-            return True, result.stdout
-        else:
-            return False, result.stderr
-    except subprocess.TimeoutExpired:
-        return False, f"命令执行超时（{timeout}秒）"
-    except Exception as e:
-        return False, str(e)
-
-def parse_response(output: str) -> Optional[dict]:
-    """解析 mcporter 响应，自动处理嵌套 result 结构"""
-    try:
-        data = json.loads(output)
-        # 如果返回有嵌套 result 字段，取 result 层
-        if isinstance(data, dict) and 'result' in data:
-            return data['result']
-        return data
-    except json.JSONDecodeError:
-        return None
-
-def get_root_dentry_uuid() -> Optional[str]:
-    """获取"我的文档"根目录 ID"""
-    success, output = run_mcporter('dingtalk-docs.get_my_docs_root_dentry_uuid')
-
-    if not success:
-        print(f"❌ 获取根目录 ID 失败：{output}")
-        return None
-
-    result = parse_response(output)
-    if result is None:
-        print(f"❌ 解析响应失败：{output}")
-        return None
-    return result.get('rootDentryUuid')
+# ============== 业务函数 ==============
 
 def create_doc(title: str, parent_uuid: str) -> Optional[str]:
     """
