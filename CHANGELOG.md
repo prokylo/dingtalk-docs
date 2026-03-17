@@ -1,5 +1,32 @@
 # Changelog
 
+## [0.4.0] - 2026-03-17
+
+### 新增
+
+- ✅ 新增 `create_file` 工具文档（`references/api-reference.md` 第 12 节）：支持 7 种文件类型（adoc/axls/appt/adraw/amind/able/folder），含完整入参/出参/调用示例/错误码
+- ✅ 新增 `scripts/create_file.py`：命令行创建文件脚本，支持 7 种类型和位置参数
+- ✅ 新增 `scripts/block_ops.py`：Block 精细编辑脚本，支持 list/insert/update/delete 四个子命令
+- ✅ 新增 `references/block-api.md` 分栏（columns）结构示例（B.4 节）
+
+### 文档更新
+
+- ✅ `SKILL.md`：工具列表 7→8 个，新增 `create_file`；意图判断新增"创建其他类型文件"场景；Block 意图判断重构（两步流程 + 高频易错点 + element 常用类型速查 + InlineElement 速查）
+- ✅ `SKILL.md`：修复严格禁止第 6 条错误描述（`heading.level` 必须传**整数**，不是字符串）
+- ✅ `SKILL.md`：frontmatter description 更新，移除"不要在用户需要操作多维表时触发"（`create_file` 现已支持多维表）
+- ✅ `README.md`：功能特性列表新增 `create_file`；工具列表新增 `create_file`；目录结构补充 `mcporter_utils.py`/`create_file.py`/`block_ops.py`；api-reference.md 注释更新为 12 个工具
+- ✅ `references/block-api.md`：所有调用示例从点号写法改为空格写法；`insert_document_block` 返回值补充 `blockId`；`heading` 示例修正（level 传整数，text 移到 children）；`blockquote` 示例修正（属性对象不可省略）；新增高频易错点警告块
+- ✅ `package.json`：description 同步 `create_file`、Block 工具，移除多维表排除描述
+- ✅ `scripts/mcporter_utils.py`：工具名对照注释扩展至 12 个工具
+- ✅ `testcases.json`：新增 6 个 `create_file` 测试用例（044~049），总用例数 43→49
+
+### 修复
+
+- ✅ 修复 `SKILL.md` 中 `heading.level` 描述错误（之前误写为"必须传字符串"，实际 schema 类型为 number）
+- ✅ 修复 `references/block-api.md` 中 `blockquote` 示例（属性对象不可省略，须传 `{}`）
+
+---
+
 ## [0.3.4] - 2026-03-07
 
 ### 修复
