@@ -153,25 +153,28 @@ class TestParseResponse(unittest.TestCase):
 
 
 class TestRunMcporter(unittest.TestCase):
-    """测试 run_mcporter 函数签名和超时"""
+    """测试 mcporter_utils.run_mcporter 函数签名"""
 
     def test_function_signature(self):
-        """验证 run_mcporter 接受 (tool, args, timeout) 签名"""
+        """验证 run_mcporter 接受 (server_name, tool_name, args, timeout) 签名"""
         import inspect
-        sig = inspect.signature(create_doc.run_mcporter)
+        import mcporter_utils
+        sig = inspect.signature(mcporter_utils.run_mcporter)
         params = list(sig.parameters.keys())
-        self.assertEqual(params[0], 'tool')
-        self.assertEqual(params[1], 'args')
-        self.assertEqual(params[2], 'timeout')
+        self.assertEqual(params[0], 'server_name')
+        self.assertEqual(params[1], 'tool_name')
+        self.assertEqual(params[2], 'args')
+        self.assertEqual(params[3], 'timeout')
 
-    def test_consistent_signatures(self):
-        """三个脚本的 run_mcporter 签名一致"""
-        import inspect
-        sig_create = list(inspect.signature(create_doc.run_mcporter).parameters.keys())
-        sig_import = list(inspect.signature(import_docs.run_mcporter).parameters.keys())
-        sig_export = list(inspect.signature(export_docs.run_mcporter).parameters.keys())
-        self.assertEqual(sig_create, sig_import)
-        self.assertEqual(sig_create, sig_export)
+    def test_return_type_is_tuple(self):
+        """run_mcporter 返回值应为 (bool, str) 元组（使用不存在的工具名触发失败路径）"""
+        import mcporter_utils
+        result = mcporter_utils.run_mcporter('dingtalk-docs', '__nonexistent_tool__', {}, timeout=5)
+        self.assertIsInstance(result, tuple, "返回值应为 tuple")
+        self.assertEqual(len(result), 2, "返回值应为 2 元素 tuple")
+        success, output = result
+        self.assertIsInstance(success, bool, "第一个元素应为 bool")
+        self.assertIsInstance(output, str, "第二个元素应为 str")
 
 
 class TestContentLimits(unittest.TestCase):

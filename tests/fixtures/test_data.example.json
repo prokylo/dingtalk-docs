@@ -1,0 +1,32 @@
+{
+  "_comment": "复制此文件为 test_data.json，填入真实节点 ID 后即可运行端到端测试。test_data.json 已被 gitignore，不会提交到仓库。",
+
+  "docs": {
+    "writable_overwrite": "<有写权限的文档 nodeId，用于覆盖写测试>",
+    "writable_append":    "<有写权限的文档 nodeId，用于追加写测试>",
+    "readable":           "<只读文档 nodeId，含图片>",
+    "spreadsheet":        "<表格文档 nodeId，不支持 Markdown>",
+    "no_permission":      "<无权限文档 nodeId>",
+    "cross_org":          "<跨组织文档 nodeId>",
+    "block_ops":          "<Block 操作专用文档 nodeId>",
+    "empty":              "<近似空文档 nodeId>"
+  },
+
+  "folders": {
+    "writable":   "<有写权限的文件夹 nodeId>",
+    "readonly":   "<只读文件夹 nodeId>",
+    "cross_org":  "<跨组织文件夹 nodeId>",
+    "empty":      "<空文件夹 nodeId>",
+    "paginated":  "<分页测试文件夹 nodeId，至少 6 个子节点>"
+  },
+
+  "workspace_id": "<知识库 ID>",
+
+  "blocks": {
+    "heading_0":    "<Block 文档中 index=0 的 heading 块 ID>",
+    "paragraph_1":  "<Block 文档中 index=1 的 paragraph 块 ID>",
+    "blockquote_9": "<Block 文档中 index=9 的 blockquote 块 ID>",
+    "table_10":     "<Block 文档中 index=10 的 table 块 ID>",
+    "paragraph_11": "<Block 文档中 index=11 的 paragraph 块 ID>"
+  }
+}

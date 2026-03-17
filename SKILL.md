@@ -1,7 +1,7 @@
 ---
 name: dingtalk-docs
-description: 管理钉钉云文档中的文档、文件夹和内容。当用户想要创建文档、搜索文档、读取或写入文档内容、创建文件夹整理文档时使用。也适用于用户提到云文档、在线文档、钉钉文档、钉文档等关键词的场景。不要在用户需要操作多维表、管理日程、发消息或处理审批流时触发。
-version: 0.3.4
+description: 管理钉钉云文档中的文档、文件夹和内容。当用户想要创建文档、创建表格/脑图/白板/演示/多维表等文件、搜索文档、读取或写入文档内容、创建文件夹整理文档、遍历文件夹结构、精确编辑文档块元素时使用。也适用于用户提到云文档、在线文档、钉钉文档、钉文档等关键词的场景。不要在用户需要管理日程、发消息或处理审批流时触发。
+version: 1.0.0
 metadata:
   openclaw:
     requires:
@@ -15,147 +15,179 @@ metadata:
 
 # 钉钉云文档 Skill
 
-## Overview
+## ⚠️ 版本兼容提醒
 
-用户可能要求你创建、搜索、读取或编辑钉钉云文档。操作之间存在严格依赖关系：必须先获取 ID 才能执行后续操作。
+**本 Skill v1.0 需要新版钉钉文档 MCP URL（mcpId=9629）。**
+
+如果你看到的工具名是 `list_accessible_documents`、`write_content_to_document` 等旧名称，说明配置的是旧版 MCP URL，需要重新获取：
+
+1. 访问 [钉钉文档 MCP 广场](https://mcp.dingtalk.com/#/detail?mcpId=9629) 获取新版 StreamableHttp URL
+2. 重新配置：`mcporter config add dingtalk-docs --url "<新版URL>"`
 
 ## 严格禁止
 
-1. **禁止编造 ID** -- dentryUuid 必须从返回值中提取，编造 ID 会操作到错误文档或报错
-2. **创建前必须先获取根目录 ID** -- 必须先调 get_my_docs_root_dentry_uuid 拿到 rootDentryUuid
-3. **禁止混淆两个创建方法** -- create_doc_under_node 只能创建文档，create_dentry_under_node 支持文件夹/表格/PPT 等多种类型
-4. **写入前必须确认 updateType** -- 0=覆盖（清空后写入），1=续写（追加到末尾），搞反会丢数据，不确定时必须先问用户
-5. **禁止只传 ID 读内容** -- 必须拼成完整 URL `https://alidocs.dingtalk.com/i/nodes/{dentryUuid}`
-6. **禁止在用户说"表格"时默认创建文档** -- 可能要在线表格(accessType="1")或多维表(accessType="7")，不确定必须先问
-7. **禁止传错参数类型** -- accessType 必须是字符串，updateType 必须是数字，类型传错会导致静默失败
+1. **禁止编造 nodeId / blockId** — 必须从工具返回值中提取，编造 ID 会操作到错误文档或块
+2. **覆盖前必须确认** — `update_document(mode="overwrite")` 会清空全部内容，不确定时先问用户
+3. **禁止删除前不确认 blockId** — `delete_document_block` 不可恢复，必须先用 `list_document_blocks` 确认
+4. **仅 ALIDOC 支持 Markdown 读写** — 表格/PPT/PDF 不支持 `get_document_content` 和 `update_document`
+5. **`get_document_content` 需要下载权限** — 仅有查看权限时无法获取内容，且不支持跨组织文档
+6. **`heading.level` 必须传整数** — `insert_document_block` 插入标题时，`level` 必须传 `1` 而非 `"1"`，传字符串会导致后端报错
 
-## 可用方法列表
+## 工具列表
 
-| 方法 | 用途 | 必填参数 | 可用性 |
-|------|------|---------|--------|
-| `get_my_docs_root_dentry_uuid` | 获取"我的文档"根目录 ID | 无 | 稳定可用 |
-| `list_accessible_documents` | 搜索有权限的文档 | 无 (keyword 选填) | 稳定可用 |
-| `create_doc_under_node` | 创建在线文档 | name, parentDentryUuid | 稳定可用 |
-| `create_dentry_under_node` | 创建节点 (文档/表格/文件夹等) | name, accessType, parentDentryUuid | 稳定可用 |
-| `write_content_to_document` | 写入文档内容 (覆盖或续写) | content, updateType, targetDentryUuid | 稳定可用 |
-| `get_document_content_by_url` | 通过 URL 获取文档 Markdown 内容 | docUrl | **灰度中，部分实例不可见** |
+### 核心工具（8个）
 
-## 灰度发布说明（重要）
+| 工具 | 用途 | 必填参数 |
+|------|------|---------|
+| `search_documents` | 搜索有权限的文档 | 无（keyword 选填） |
+| `create_document` | 创建在线文档（可含初始 Markdown 内容） | name |
+| `create_file` | 创建文件（在线文档/表格/演示/白板/脑图/多维表/文件夹） | name, type |
+| `get_document_content` | 获取文档 Markdown 内容 | nodeId |
+| `update_document` | 更新文档内容（覆盖或追加） | nodeId, markdown |
+| `get_document_info` | 获取文档元信息 | nodeId |
+| `create_folder` | 创建文件夹 | name |
+| `list_nodes` | 遍历文件夹/知识库子节点 | 无（folderId 选填） |
 
-根据 GitHub issue #1 下维护者的明确回复：`get_document_content_by_url` **目前在灰度中，全量还需要一点时间**。
+### Block 精细编辑工具（4个，按需使用）
 
-因此你必须按下面规则处理：
-
-1. **如果 MCP 客户端里只看到 5 个工具，不要先判断为配置错误**
-2. **如果缺少 `get_document_content_by_url`，不要先判断为权限缺失**
-3. 通过钉钉 MCP 广场拿到的 URL，当前很可能因为**服务端未放量**而看不到该方法
-4. 在该方法未放开前，Skill 应把“读文档内容”视为**条件可用能力**，不是所有环境都保证存在
-5. 向用户说明时要直接说清：**这是官方灰度状态，不是本地接入姿势问题**
+| 工具 | 用途 | 必填参数 |
+|------|------|---------|
+| `list_document_blocks` | 查询块列表（获取 blockId） | nodeId |
+| `insert_document_block` | 在指定位置插入块元素 | nodeId, element |
+| `update_document_block` | 更新块元素（仅支持 paragraph） | nodeId, blockId, element |
+| `delete_document_block` | 删除块元素（不可恢复） | nodeId, blockId |
 
 ## 意图判断
 
-用户说"创建文档/新建文档/写个文档/帮我建个文档":
-- 创建文档 → 先 get_my_docs_root_dentry_uuid，再 create_doc_under_node
-- 创建到指定文件夹 → 用文件夹的 dentryUuid 作为 parentDentryUuid
+**创建在线文档**（"新建文档/帮我建个文档/写个文档"）:
+- 直接 `create_document(name, markdown?)` — 不传 folderId 默认到根目录
+- 指定文件夹 → `create_document(name, folderId=<文件夹nodeId>)`
 
-用户说"建文件夹/新建目录/整理一下文档":
-- 创建文件夹 → create_dentry_under_node(accessType="13")
+**创建其他类型文件**（"新建表格/脑图/白板/演示/多维表/文件夹"）:
+- `create_file(name, type)` — type 枚举：`adoc`/`axls`/`appt`/`adraw`/`amind`/`able`/`folder`
+- 指定文件夹 → `create_file(name, type, folderId=<文件夹nodeId>)`
+- 指定知识库 → `create_file(name, type, workspaceId=<知识库ID>)`（folderId 优先级高于 workspaceId）
+- `create_document` vs `create_file`：前者专为在线文档设计且支持写入初始 Markdown，后者支持 7 种文件类型但不支持初始内容
 
-用户说"创建表格/建个PPT/做个脑图":
-- 非文档类型 → create_dentry_under_node，accessType: 表格="1"，PPT="2"，脑图="6"，多维表="7"
-- 用户说"表格"但不确定类型 → 先问是在线表格还是多维表
+**搜索文档**（"找文档/查一下/有没有某个文档"）:
+- `search_documents(keyword=关键词)`
 
-关键区分: 在线表格(accessType="1") vs 多维表(accessType="7") vs 文档(用 create_doc_under_node)
+**读取文档内容**（"读文档/看看内容/这个文档写了什么"）:
+- `get_document_content(nodeId)` — nodeId 支持 URL 或 ID 自动识别
+- 若返回 UNSUPPORTED_CONTENT_TYPE → 告知用户该文档类型不支持 Markdown 读取
 
-用户说"搜索/找文档/查一下/有没有某个文档":
-- 搜索 → list_accessible_documents(keyword=关键词)
+**更新文档内容**（"写入/更新/编辑/往文档里加点东西"）:
+- 替换全部 → `update_document(nodeId, markdown, mode="overwrite")`（⚠️ 会清空，先确认）
+- 追加内容 → `update_document(nodeId, markdown, mode="append")`
+- 不确定 → 先问用户是覆盖还是追加
 
-用户说"读文档/看看内容/打开文档/这个文档写了什么":
-- **先确认当前 MCP 服务是否真的暴露了 `get_document_content_by_url`**
-- 有 URL 且该方法可用 → 直接 get_document_content_by_url
-- 有文档名且该方法可用 → 先 list_accessible_documents 搜索，拿到 dentryUuid，拼 URL 再读
-- 如果当前实例缺少 `get_document_content_by_url` → 明确告诉用户：**该读取能力目前仍在官方灰度中，你的实例暂未放开**，不要把原因归咎于用户配置
+**创建文件夹**（"建文件夹/新建目录"）:
+- `create_folder(name, folderId?)` — 不传 folderId 默认到根目录
 
-用户说"写入/更新内容/编辑文档/往文档里加点东西":
-- 全新内容或替换 → write_content_to_document(updateType=0) 覆盖
-- 追加内容 → write_content_to_document(updateType=1) 续写
-- 不确定 → 问用户是覆盖还是追加
+**遍历文件夹**（"列出文件夹/看看里面有什么"）:
+- `list_nodes(folderId?)` — 支持分页（pageSize, nextPageToken）
+
+**精细编辑块元素**（"修改第几段/在某段后面插入/删除某个块/在标题后加内容"）:
+
+第一步：**必须先** `list_document_blocks(nodeId)` 获取 blockId、index 和 blockType，禁止猜测或编造。
+
+第二步，根据意图选择操作：
+- **插入新块** → `insert_document_block(nodeId, element, referenceBlockId?, where?)`
+  - 不传位置参数 → 插入到文档末尾
+  - `where="after"` / `where="before"` 配合 `referenceBlockId` 控制插入位置
+- **修改已有块** → `update_document_block(nodeId, blockId, element)`（⚠️ 仅支持 paragraph 类型）
+- **删除块** → `delete_document_block(nodeId, blockId)`（不可恢复，操作前务必向用户确认）
+  - 批量删除时从后向前按 index 倒序删除，避免 index 位移
+
+**⚠️ 高频易错点**：
+- `paragraph` 属性对象**不可省略**，内容为空时须传 `"paragraph": {}`
+- `heading.level` **必须传整数**（`1` 而非 `"1"`），传字符串会导致后端报错
+- 列表块的 `list` 字段**必填**，不可省略
+- 多级有序列表同组须保持相同 `listId`，否则展示错误
+
+**element 常用类型速查**（完整结构见 [dingtalk_document_struct.md](./dingtalk_document_struct.md)）:
+
+```json
+// 段落（paragraph）— paragraph 对象不可省略，空段落传 {}
+{ "blockType": "paragraph", "paragraph": {}, "children": [{ "text": "普通文字" }] }
+
+// 标题（heading）— level 传整数 1~6
+{ "blockType": "heading", "heading": { "level": 1 }, "children": [{ "text": "一级标题" }] }
+
+// 引用（blockquote）
+{ "blockType": "blockquote", "blockquote": {}, "children": [{ "text": "引用内容" }] }
+
+// 无序列表（unorderedList）— list 字段必填
+{
+  "blockType": "unorderedList",
+  "unorderedList": {
+    "list": { "level": 0, "listStyleType": "disc", "listStyle": { "format": "disc", "text": "%1", "align": "left" } }
+  },
+  "children": [{ "text": "列表项" }]
+}
+
+// 有序列表（orderedList）— list 字段必填，同组多级列表须保持相同 listId
+{
+  "blockType": "orderedList",
+  "orderedList": {
+    "list": { "listId": "list-001", "level": 0, "listStyleType": "decimal", "listStyle": { "format": "decimal", "text": "%1.", "align": "left" } }
+  },
+  "children": [{ "text": "列表项" }]
+}
+
+// 表格（table）— cells 为二维字符串数组
+{ "blockType": "table", "table": { "rolSize": 2, "colSize": 3, "cells": [["A", "B", "C"], ["1", "2", "3"]] } }
+```
+
+**children 行内元素（InlineElement）常用写法**:
+```json
+{ "text": "普通文字" }
+{ "text": "加粗", "bold": true }
+{ "text": "斜体", "italic": true }
+{ "text": "代码", "fonts": "monospace" }
+{ "elementType": "link", "properties": { "href": "https://..." }, "children": [{ "text": "链接文字" }] }
+{ "elementType": "sticker", "properties": { "code": "灯泡" } }
+```
 
 ## 核心工作流
 
-创建文档并写入:
-1. get_my_docs_root_dentry_uuid() → 提取 rootDentryUuid
-2. create_doc_under_node(name, parentDentryUuid=rootDentryUuid) → 提取 dentryUuid
-3. (HARD-GATE: 必须确认 updateType) write_content_to_document(content, updateType=0, targetDentryUuid=dentryUuid) → 提取写入结果
-4. get_document_content_by_url(docUrl="https://alidocs.dingtalk.com/i/nodes/{dentryUuid}") → 验证
-
-搜索并读取（仅当 `get_document_content_by_url` 已放量可用时）:
-1. list_accessible_documents(keyword="关键词") → 提取 docs[].dentryUuid
-2. get_document_content_by_url(docUrl="https://alidocs.dingtalk.com/i/nodes/{dentryUuid}")
-
-如果当前实例没有 `get_document_content_by_url`：
-- 停在搜索结果这一步
-- 明确提示用户该能力仍处于官方灰度阶段
-- 不要伪造“读取成功”或编造替代读接口
-
-创建文件夹并整理:
-1. get_my_docs_root_dentry_uuid() → 提取 rootDentryUuid
-2. create_dentry_under_node(name, accessType="13", parentDentryUuid=rootDentryUuid) → 提取 dentryUuid
-3. create_doc_under_node(name, parentDentryUuid=文件夹dentryUuid)
-
-## 上下文传递规则
-
-| 操作 | 从返回中提取 | 用于 |
-|------|-------------|------|
-| get_my_docs_root_dentry_uuid | rootDentryUuid | create_doc_under_node / create_dentry_under_node 的 parentDentryUuid |
-| create_doc_under_node | dentryUuid | write_content_to_document 的 targetDentryUuid，拼 URL 读内容 |
-| create_dentry_under_node | dentryUuid | 作为子节点的 parentDentryUuid |
-| list_accessible_documents | docs[].dentryUuid | 拼成 `https://alidocs.dingtalk.com/i/nodes/{dentryUuid}` 用于读取 |
-
-## CRITICAL: 参数格式
-
-```jsonc
-// [正确] docUrl 必须是完整 URL
-{"docUrl": "https://alidocs.dingtalk.com/i/nodes/DnRL6jAJ..."}
-// [错误] 只传 ID → 报错
-{"docUrl": "DnRL6jAJ..."}
-
-// [正确] accessType 是字符串
-{"name": "报表", "accessType": "1", "parentDentryUuid": "xxx"}
-// [错误] accessType 传数字 → 静默失败
-{"name": "报表", "accessType": 1, "parentDentryUuid": "xxx"}
-
-// [正确] updateType 是数字
-{"content": "...", "updateType": 0, "targetDentryUuid": "xxx"}
-// [错误] updateType 传字符串 → 静默失败
-{"content": "...", "updateType": "0", "targetDentryUuid": "xxx"}
+**创建文档并写入内容（一步完成）**:
+```
+create_document(name="标题", markdown="# 标题\n\n内容") → 提取 nodeId
 ```
 
-## 本地文件脚本说明
+**搜索并读取**:
+```
+search_documents(keyword) → 提取 nodeId
+get_document_content(nodeId) → 获取 markdown 内容
+```
 
-`scripts/` 目录中的辅助脚本会处理本地文件输入 / 输出：
+**遍历文件夹并操作文档**:
+```
+list_nodes(folderId?) → 提取 nodes[].nodeId
+get_document_info(nodeId) → 确认 contentType=ALIDOC
+get_document_content(nodeId) → 读取内容
+```
 
-- `import_docs.py` 会读取工作区内的 `.md` / `.txt` / `.markdown` 文件并导入到钉钉文档
-- `export_docs.py` 会将钉钉文档内容导出为工作区内的本地 Markdown 文件
-- `create_doc.py` 会调用 `mcporter` 创建文档并写入内容
-
-这些脚本都受以下规则约束：
-
-- 仅允许访问工作区内路径
-- 使用 `resolve_safe_path()` 防止目录遍历
-- 限制文件大小和扩展名
-- 仅通过 `mcporter` 调用 MCP 服务，不直接发起网络请求
+**Block 精细编辑**:
+```
+list_document_blocks(nodeId) → 提取 blockId
+insert_document_block(nodeId, referenceBlockId, where, element)
+```
 
 ## 错误处理
 
-1. 遇到错误: 展示错误信息给用户，不要自行猜测解决方案
-2. "Invalid credentials": 提示用户重新配置凭证
-3. "Permission denied": 提示用户确认对该文档有操作权限
-4. "Document not found": 用 list_accessible_documents 重新搜索确认文档是否存在
-5. 如果方法列表里根本没有 `get_document_content_by_url`：按**官方灰度未放量**处理，不要误报为本地配置错误
-6. 错误码 52600007: 可能是企业账号限制或父节点 ID 无效，确认 parentDentryUuid 来源
+1. **PERMISSION_DENIED** — 提示用户确认对该文档有操作权限
+2. **UNSUPPORTED_CONTENT_TYPE** — 该文档类型（表格/PPT等）不支持 Markdown 读写
+3. **BLOCK_NOT_FOUND** — blockId 不存在，先用 `list_document_blocks` 重新获取
+4. **UNSUPPORTED_BLOCK_TYPE** — `update_document_block` 当前仅支持 paragraph 类型
+5. **CROSS_ORG_NOT_ALLOWED** — 跨组织操作被禁止
+6. **Invalid credentials** — 提示用户重新配置凭证，检查 MCP URL 是否为新版
 
-## 详细参考 (按需读取)
+遇到错误时展示 logId 给用户，便于向钉钉官方反馈排查。
 
-- [references/api-reference.md](./references/api-reference.md) -- 完整参数 Schema + 返回值 + 节点类型枚举
-- [references/error-codes.md](./references/error-codes.md) -- 错误码说明 + 调试流程
+## 详细参考（按需读取）
+
+- [references/api-reference.md](./references/api-reference.md) — 12 个工具完整参数 Schema + 返回值（含 Block 工具 9-12）
+- [dingtalk_document_struct.md](./dingtalk_document_struct.md) — Block 元素完整数据结构（BlockElement / InlineElement）
+- [references/error-codes.md](./references/error-codes.md) — 错误码说明 + 调试流程

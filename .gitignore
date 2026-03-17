@@ -31,3 +31,12 @@ coverage/
 # Temporary files
 tmp/
 temp/
+
+# Local personal config (not for git)
+.local/
+
+# Test fixtures（含敏感节点 ID，不提交）
+tests/fixtures/test_data.json
+
+# Test reports（运行时生成，不提交）
+tests/e2e_report.md
