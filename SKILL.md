@@ -109,7 +109,7 @@ metadata:
 
 ```json
 // 段落（paragraph）— paragraph 对象不可省略，空段落传 {}
-{ "blockType": "paragraph", "paragraph": {}, "children": [{ "text": "普通文字" }] }
+{ "blockType": "paragraph", "paragraph": { "text": "普通文字" } }
 
 // 标题（heading）— level 传整数 1~6
 { "blockType": "heading", "heading": { "level": 1 }, "children": [{ "text": "一级标题" }] }
@@ -117,11 +117,14 @@ metadata:
 // 引用（blockquote）
 { "blockType": "blockquote", "blockquote": {}, "children": [{ "text": "引用内容" }] }
 
+// 高亮块（callout）— children 为 BlockElement 数组（不能是 InlineElement）
+{ "blockType": "callout", "callout": { "sticker": "灯泡", "showstk": true, "bgcolor": "#FFF9C4", "border": "#FFD700" }, "children": [{ "blockType": "paragraph", "paragraph": { "text": "高亮内容" } }]}
+
 // 无序列表（unorderedList）— list 字段必填
 {
   "blockType": "unorderedList",
   "unorderedList": {
-    "list": { "level": 0, "listStyleType": "disc", "listStyle": { "format": "disc", "text": "%1", "align": "left" } }
+    "list": { "listId": "list-001", "level": 0, "listStyleType": "disc", "listStyle": { "format": "disc", "text": "%1", "align": "left" } }
   },
   "children": [{ "text": "列表项" }]
 }
@@ -144,9 +147,12 @@ metadata:
 { "text": "普通文字" }
 { "text": "加粗", "bold": true }
 { "text": "斜体", "italic": true }
+{ "text": "下划线", "underline": true }
+{ "text": "颜色", "color": "red" }
 { "text": "代码", "fonts": "monospace" }
 { "elementType": "link", "properties": { "href": "https://..." }, "children": [{ "text": "链接文字" }] }
 { "elementType": "sticker", "properties": { "code": "灯泡" } }
+{ "elementType": "image", "properties": { "src": "https://example.com/image.jpg" } }
 ```
 
 ## 核心工作流
