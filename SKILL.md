@@ -117,6 +117,9 @@ metadata:
 // 引用（blockquote）
 { "blockType": "blockquote", "blockquote": {}, "children": [{ "text": "引用内容" }] }
 
+// 分栏（columns）— children 为 BlockElement 数组（不能是 InlineElement）
+{ "blockType": "columns", "columns": { "size": 2 }, "children": [{ "blockType": "paragraph", "paragraph": { "text": "左栏内容" } }, { "blockType": "paragraph", "paragraph": { "text": "右栏内容" } }] }
+
 // 高亮块（callout）— children 为 BlockElement 数组（不能是 InlineElement）
 { "blockType": "callout", "callout": { "sticker": "灯泡", "showstk": true, "bgcolor": "#FFF9C4", "border": "#FFD700" }, "children": [{ "blockType": "paragraph", "paragraph": { "text": "高亮内容" } }]}
 
